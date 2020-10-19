@@ -133,6 +133,12 @@ struct panel_desc {
 
 	/** @connector_type: LVDS, eDP, DSI, DPI, etc. */
 	int connector_type;
+
+	/* additional device tree settings for this panel */
+	u32 refresh_rate;
+	u32 rotate;
+	bool hflip;
+	bool vflip;
 };
 
 struct panel_simple {
@@ -187,6 +193,8 @@ static unsigned int panel_simple_get_timings_modes(struct panel_simple *panel,
 		if (panel->desc->num_timings == 1)
 			mode->type |= DRM_MODE_TYPE_PREFERRED;
 
+		drm_mode_debug_printmodeline(mode);
+
 		drm_mode_probed_add(connector, mode);
 		num++;
 	}
@@ -217,6 +225,8 @@ static unsigned int panel_simple_get_display_modes(struct panel_simple *panel,
 			mode->type |= DRM_MODE_TYPE_PREFERRED;
 
 		drm_mode_set_name(mode);
+
+		drm_mode_debug_printmodeline(mode);
 
 		drm_mode_probed_add(connector, mode);
 		num++;
@@ -532,21 +542,73 @@ static void panel_simple_parse_panel_timing_node(struct device *dev,
 		    !PANEL_SIMPLE_BOUNDS_CHECK(ot, dt, vactive) ||
 		    !PANEL_SIMPLE_BOUNDS_CHECK(ot, dt, vfront_porch) ||
 		    !PANEL_SIMPLE_BOUNDS_CHECK(ot, dt, vback_porch) ||
-		    !PANEL_SIMPLE_BOUNDS_CHECK(ot, dt, vsync_len))
+		    !PANEL_SIMPLE_BOUNDS_CHECK(ot, dt, vsync_len)) {
+		        dev_warn(dev, "BOUNDS CHECK failed\n");
 			continue;
+		}
 
-		if (ot->flags != dt->flags)
+		if (ot->flags != dt->flags) {
+			dev_warn(dev, "FLAGS CHECK failed. ot: 0x%x dt:0x%x\n", ot->flags, dt->flags);
 			continue;
+		}
 
 		videomode_from_timing(ot, &vm);
 		drm_display_mode_from_videomode(&vm, &panel->override_mode);
 		panel->override_mode.type |= DRM_MODE_TYPE_DRIVER |
 					     DRM_MODE_TYPE_PREFERRED;
+		dev_warn(dev, "Found suitable override.\n");
 		break;
 	}
 
 	if (WARN_ON(!panel->override_mode.type))
 		dev_err(dev, "Reject override mode: No display_timing found\n");
+}
+
+static int panel_simple_parse_dt_settings (struct device *dev, struct panel_simple *panel, const struct panel_desc *desc)
+{
+	struct device_node *np = dev->of_node;
+	struct panel_desc *pd = (struct panel_desc *)desc;
+	int ret = 0;
+
+	/* if other panel node attributes exists, parse them from device tree, and force override */
+	if (of_property_read_bool(np, "panel-width-mm")) {
+		of_property_read_u32(np, "panel-width-mm", &pd->size.width);
+		ret = -1;
+	}
+	if (of_property_read_bool(np, "panel-height-mm")) {
+		of_property_read_u32(np, "panel-height-mm", &pd->size.height);
+		ret = -1;
+	}
+	if (of_property_read_bool(np, "refresh-rate")) {
+		of_property_read_u32(np, "refresh-rate", &pd->refresh_rate);
+		ret = -1;
+	}
+	if (of_property_read_bool(np, "bits-per-color")) {
+		of_property_read_u32(np, "bits-per-color", &pd->bpc);
+		ret = -1;
+	}
+	if (of_property_read_bool(np, "bus-format")) {
+		of_property_read_u32(np, "bus-format", &pd->bus_format);
+		ret = -1;
+	}
+	if (of_property_read_bool(np, "bus-flags")) {
+		of_property_read_u32(np, "bus-flags", &pd->bus_flags);
+		ret = -1;
+	}
+	if (of_property_read_bool(np, "rotate")) {
+		of_property_read_u32(np, "rotate", &pd->rotate);
+		ret = -1;
+	}
+	if (of_property_read_bool(np, "horz-flip")) {
+		pd->hflip = true;
+		ret = -1;
+	}
+	if (of_property_read_bool(np, "vert-flip")) {
+		pd->vflip = true;
+		ret = -1;
+	}
+
+	return ret;
 }
 
 static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
@@ -561,6 +623,11 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 	panel = devm_kzalloc(dev, sizeof(*panel), GFP_KERNEL);
 	if (!panel)
 		return -ENOMEM;
+
+	/* force override panel_desc panel settings from dt */
+	err = panel_simple_parse_dt_settings(dev, panel, desc);
+	if (err)
+		dev_warn(dev, "panel-desc setting overridden from dt\n");
 
 	panel->enabled = false;
 	panel->desc = desc;
@@ -4883,19 +4950,47 @@ MODULE_DEVICE_TABLE(of, dsi_of_match);
 static int panel_simple_dsi_probe(struct mipi_dsi_device *dsi)
 {
 	const struct panel_desc_dsi *desc;
+	const struct of_device_id *id;
+	struct device_node *np;
+	u32 dsi_flags;
+	u32 dsi_format;
+	u32 dsi_lanes;
 	int err;
 
+	np = dsi->dev.of_node;
 	desc = of_device_get_match_data(&dsi->dev);
-	if (!desc)
-		return -ENODEV;
+	/* if no drm_display_mode from device tree then use the (default) desc (i.e. id->data) */
+	if (!desc) {
+		dsi_flags = desc->flags;
+		dsi_format = desc->format;
+		dsi_lanes = desc->lanes;
+		dev_warn(&dsi->dev, "panel-desc-dsi use default setting\n");
+	} else {
+		/* parse the dsi,flags, format, and lanes setting if set in dt */
+		/* and force override the const static panel_desc_dsi data struct */
+		if (of_property_read_bool(np, "dsi,flags"))
+			of_property_read_u32(np, "dsi,flags", &dsi_flags);
+		if (of_property_read_bool(np, "dsi,format"))
+			of_property_read_u32(np, "dsi,format", &dsi_format);
+		if (of_property_read_bool(np, "dsi,lanes"))
+			of_property_read_u32(np, "dsi,lanes", &dsi_lanes);
+		if (dsi_flags != desc->flags || \
+		    dsi_format != desc->format || \
+		    dsi_lanes !=  desc->lanes) {
+			((struct panel_desc_dsi*)desc)->flags = dsi_flags;
+			((struct panel_desc_dsi*)desc)->format = dsi_format;
+			((struct panel_desc_dsi*)desc)->lanes = dsi_lanes;
+			dev_warn(&dsi->dev, "panel-desc-dsi setting overridden from dt\n");
+		}
+	}
 
 	err = panel_simple_probe(&dsi->dev, &desc->desc);
 	if (err < 0)
 		return err;
 
-	dsi->mode_flags = desc->flags;
-	dsi->format = desc->format;
-	dsi->lanes = desc->lanes;
+	dsi->mode_flags = dsi_flags;
+	dsi->format = dsi_format;
+	dsi->lanes = dsi_lanes;
 
 	err = mipi_dsi_attach(dsi);
 	if (err) {
