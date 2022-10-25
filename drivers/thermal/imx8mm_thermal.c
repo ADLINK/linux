@@ -86,6 +86,87 @@ static int imx8mm_tmu_get_temp(void *data, int *temp)
 	return 0;
 }
 
+#define OCOTP_BASE_ADDR 0x30350000
+struct ocotp_regs {
+	u32	ctrl;
+	u32	ctrl_set;
+	u32     ctrl_clr;
+	u32	ctrl_tog;
+	u32	timing;
+	u32     rsvd0[3];
+	u32     data;
+	u32     rsvd1[3];
+	u32     read_ctrl;
+	u32     rsvd2[3];
+	u32	read_fuse_data;
+	u32     rsvd3[3];
+	u32	sw_sticky;
+	u32     rsvd4[3];
+	u32     scs;
+	u32     scs_set;
+	u32     scs_clr;
+	u32     scs_tog;
+	u32     crc_addr;
+	u32     rsvd5[3];
+	u32     crc_value;
+	u32     rsvd6[3];
+	u32     version;
+	u32     rsvd7[0xdb];
+
+	/* fuse banks */
+	struct fuse_bank {
+		u32	fuse_regs[0x10];
+	} bank[0];
+};
+
+struct fuse_bank1_regs {
+	u32 tester3;
+	u32 rsvd0[3];
+	u32 tester4;
+	u32 rsvd1[3];
+	u32 tester5;
+	u32 rsvd2[3];
+	u32 cfg0;
+	u32 rsvd3[3];
+};
+
+static int get_cpu_temp_grade_maxc(void)
+{
+	unsigned int val = 0;
+	int minc = 0, maxc = 0;
+
+	if (of_machine_is_compatible("fsl,imx8mp") || of_machine_is_compatible("fsl,imx8mm")) {
+		struct ocotp_regs *ocotp = (struct ocotp_regs *)OCOTP_BASE_ADDR;
+		struct fuse_bank *bank = &ocotp->bank[1];
+		struct fuse_bank1_regs *fuse = (struct fuse_bank1_regs *)bank->fuse_regs;
+		void __iomem *tmpp = ioremap_cache((phys_addr_t)fuse, sizeof(struct fuse_bank1_regs));
+		if (!tmpp)
+			return -ENOMEM;
+
+		fuse = (struct fuse_bank1_regs *)tmpp;
+		val = fuse->tester3;
+		switch ((val >> 5) & 0x3) {
+		case 0: // Commercial (0 to 95 ¢FXC)
+			minc = 0;
+			maxc = 95;
+			break;
+		case 1: // Extended Commercial (-20 ¢FXC to 105 ¢FXC)
+			minc = -20;
+			maxc = 105;
+			break;
+		case 2: // Industrial (-40 ¢FXC to 105 ¢FXC)
+			minc = -40;
+			maxc = 105;
+			break;
+		case 3: // Automotive (-40 ¢FXC to 125 ¢FXC)
+			minc = -40;
+			maxc = 125;
+			break;
+		}
+	}
+	return maxc;
+}
+
 static int imx8mp_tmu_get_temp(void *data, int *temp)
 {
 	struct tmu_sensor *sensor = data;
@@ -227,6 +308,17 @@ static int imx8mm_tmu_probe(struct platform_device *pdev)
 			goto disable_clk;
 		}
 		tmu->sensors[i].hw_id = i;
+
+		trips = of_thermal_get_trip_points(tmu->sensors[i].tzd);
+
+		/* get the thermal trip temp */
+		if (of_machine_is_compatible("fsl,imx8mp") || of_machine_is_compatible("fsl,imx8mm")) {
+			tmu->sensors[i].temp_passive = ((get_cpu_temp_grade_maxc() - 10) * 1000);
+			tmu->sensors[i].temp_critical = (get_cpu_temp_grade_maxc() * 1000);
+		} else {
+		tmu->sensors[i].temp_passive = trips[0].temperature;
+		tmu->sensors[i].temp_critical = trips[1].temperature;
+		}
 
 		tmu->sensors[i].cdev = devfreq_cooling_register();
 		if (IS_ERR(tmu->sensors[i].cdev)) {
