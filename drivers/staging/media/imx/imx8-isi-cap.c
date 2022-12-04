@@ -54,7 +54,23 @@ struct mxc_isi_fmt mxc_isi_src_formats[] = {
 		.memplanes	= 1,
 		.colplanes	= 1,
 		.align		= 2,
-	}
+	},
+	{
+		.name		= "BGGR10",
+		.fourcc		= V4L2_PIX_FMT_SBGGR10,
+		.depth		= { 16 },
+		.memplanes	= 1,
+		.colplanes	= 1,
+		.align		= 2,
+	},
+	{
+		.name		= "BGGR8",
+		.fourcc		= V4L2_PIX_FMT_SBGGR8,
+		.depth		= { 8 },
+		.memplanes	= 1,
+		.colplanes	= 1,
+		.align		= 2,
+	},
 };
 
 struct mxc_isi_fmt *mxc_isi_get_format(unsigned int index)
@@ -99,6 +115,10 @@ struct mxc_isi_fmt *mxc_isi_get_src_fmt(struct v4l2_subdev_format *sd_fmt)
 	    sd_fmt->format.code == MEDIA_BUS_FMT_UYVY8_2X8 ||
 	    sd_fmt->format.code == MEDIA_BUS_FMT_YUYV8_2X8)
 		index = 1;
+	else if(sd_fmt->format.code == MEDIA_BUS_FMT_SBGGR10_1X10)
+		index = 2;
+	else if(sd_fmt->format.code == MEDIA_BUS_FMT_SBGGR8_1X8)
+		index = 3;
 	else
 		index = 0;
 	return &mxc_isi_src_formats[index];
@@ -119,6 +139,7 @@ static int mxc_isi_pipeline_enable(struct mxc_isi_cap_dev *isi_cap, bool enable)
 	struct media_device *mdev = entity->graph_obj.mdev;
 	struct media_graph graph;
 	struct v4l2_subdev *subdev;
+	struct v4l2_subdev *subdev_defer = NULL;
 	int ret = 0;
 
 	mutex_lock(&mdev->graph_mutex);
@@ -147,12 +168,25 @@ static int mxc_isi_pipeline_enable(struct mxc_isi_cap_dev *isi_cap, bool enable)
 			continue;
 		}
 
-		ret = v4l2_subdev_call(subdev, video, s_stream, enable);
-		if (ret < 0 && ret != -ENOIOCTLCMD) {
-			dev_err(dev, "subdev %s s_stream failed\n", subdev->name);
-			break;
+		if((strstr(subdev->entity.name, "ov13850") != NULL) ||
+			(strstr(subdev->entity.name, "ov13855") != NULL)) {
+			subdev_defer = subdev;
+		} else {
+			ret = v4l2_subdev_call(subdev, video, s_stream, enable);
+			if (ret < 0 && ret != -ENOIOCTLCMD) {
+				dev_err(dev, "subdev %s s_stream failed\n", subdev->name);
+				break;
+			}
 		}
 	}
+
+	if(subdev_defer) {
+		ret = v4l2_subdev_call(subdev_defer, video, s_stream, enable);
+		if (ret < 0 && ret != -ENOIOCTLCMD) {
+			dev_err(dev, "subdev %s s_stream failed\n", subdev_defer->name);
+		}
+	}
+
 	mutex_unlock(&mdev->graph_mutex);
 	media_graph_walk_cleanup(&graph);
 

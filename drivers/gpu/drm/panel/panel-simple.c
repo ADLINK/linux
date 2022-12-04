@@ -2478,6 +2478,37 @@ static const struct panel_desc hitachi_tx23d38vm0caa = {
 	},
 };
 
+static const struct display_timing hydis_hv150ux2_100_timings = {
+	.pixelclock = { 162000000, 162000000, 162000000 },
+	.hactive = { 1600, 1600, 1600 },
+	.hfront_porch = { 180, 180, 180 },
+	.hback_porch = { 180, 180, 180 },
+	.hsync_len = { 200, 200, 200 },
+	.vactive = { 1200, 1200, 1200 },
+	.vfront_porch = { 15, 15, 15 },
+	.vback_porch = { 15, 15, 15 },
+	.vsync_len = { 20, 20, 20 },
+};
+
+
+static const struct panel_desc hydis_hv150ux2_100 = {
+	.timings = &hydis_hv150ux2_100_timings,
+	.num_timings = 1,
+	.bpc = 8,
+	.size = {
+		.width = 304,
+		.height = 228,
+	},
+	.delay = {
+		.prepare = 10,
+		.enable = 50,
+		.disable = 50,
+		.unprepare = 200,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
+};
+
+
 static const struct drm_display_mode innolux_at043tn24_mode = {
 	.clock = 9000,
 	.hdisplay = 480,
@@ -4728,6 +4759,9 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible = "hit,tx23d38vm0caa",
 		.data = &hitachi_tx23d38vm0caa
 	}, {
+		.compatible = "hydis,hv150ux2-100",
+		.data = &hydis_hv150ux2_100,
+	},  {
 		.compatible = "innolux,at043tn24",
 		.data = &innolux_at043tn24,
 	}, {

@@ -1138,6 +1138,7 @@ static int mipi_csis_set_fmt(struct v4l2_subdev *mipi_sd,
 
 	format->pad = source_pad->index;
 	mf->code = MEDIA_BUS_FMT_UYVY8_2X8;
+
 	ret = v4l2_subdev_call(sen_sd, pad, set_fmt, NULL, format);
 	if (ret < 0) {
 		v4l2_err(&state->sd, "%s, set sensor format fail\n", __func__);
@@ -1163,6 +1164,7 @@ static int mipi_csis_get_fmt(struct v4l2_subdev *mipi_sd,
 	struct v4l2_mbus_framefmt *mf = &state->format;
 	struct media_pad *source_pad;
 	struct v4l2_subdev *sen_sd;
+	struct csis_pix_format const *csis_fmt;
 	int ret;
 
 	/* Get remote source pad */
@@ -1187,6 +1189,14 @@ static int mipi_csis_get_fmt(struct v4l2_subdev *mipi_sd,
 	}
 
 	memcpy(mf, &format->format, sizeof(struct v4l2_mbus_framefmt));
+
+	csis_fmt = find_csis_format(mf->code);
+	if (!csis_fmt) {
+		csis_fmt = &mipi_csis_formats[0];
+		mf->code = csis_fmt->code;
+	}
+	state->csis_fmt = csis_fmt;
+
 	return 0;
 }
 
@@ -1293,6 +1303,9 @@ static int csis_s_fmt(struct v4l2_subdev *sd, struct csi_sam_format *fmt)
 	struct csi_state *state = container_of(sd, struct csi_state, sd);
 
 	switch (fmt->format) {
+	case V4L2_PIX_FMT_SBGGR8:
+	    code = MEDIA_BUS_FMT_SBGGR8_1X8;
+	    break;
 	case V4L2_PIX_FMT_SBGGR10:
 	    code = MEDIA_BUS_FMT_SBGGR10_1X10;
 	    break;

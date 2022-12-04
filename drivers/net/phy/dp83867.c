@@ -24,6 +24,11 @@
 #define MII_DP83867_PHYSTS	0x11
 #define MII_DP83867_MICR	0x12
 #define MII_DP83867_ISR		0x13
+
+/* Extended LED Registers */
+#define DP83867_LEDCR1		0x0018
+#define DP83867_LEDCR2		0x0019
+#define DP83867_CTRL		0x1f
 #define DP83867_CFG2		0x14
 #define DP83867_CFG3		0x1e
 #define DP83867_CTRL		0x1f
@@ -818,6 +823,37 @@ static int dp83867_config_init(struct phy_device *phydev)
 
 		phy_modify_mmd(phydev, DP83867_DEVADDR, DP83867_IO_MUX_CFG,
 			       mask, val);
+	}
+
+	/* LED Configuration for SMARC series boards */
+	/* Set LED pins' function - set LED_0 1011, LED_1 0110, LED_2 0101, LED_GPIO 1111 */
+	/* LED_0    1011: Link established, blink for transmit or receive activity */
+	/* LED_1    0110: 100 BTX link established */
+	/* LED_2    0101: 1000BT link established */
+	/* LED_GPIO 1111: Reserved */
+	val = phy_read(phydev, DP83867_LEDCR1);
+	if (val < 0)
+		return val;
+
+	if ((val & 0xFFFF) != 0xF56B) {
+		val &= ~0xFFFF;
+		val |= 0xF56B;
+		ret = phy_write(phydev, DP83867_LEDCR1, val);
+		if (ret)
+			return ret;
+	}
+
+	/* Control LED outputs' ability - set LED_0, LED_1, LED_2 active low, LED_GPIO reserve */
+	val = phy_read(phydev, DP83867_LEDCR2);
+	if (val < 0)
+		return val;
+
+	if ((val & 0xFFFF) != 0x0000) {
+		val &= ~0xFFFF;
+		val |= 0x0000;
+		ret = phy_write(phydev, DP83867_LEDCR2, val);
+		if (ret)
+			return ret;
 	}
 
 	return 0;

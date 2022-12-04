@@ -1303,6 +1303,24 @@ config VIDEO_NOON010PC30
 	help
 	  This driver supports NOON010PC30 CIF camera from Siliconfile
 
+config VIDEO_OV13850
+	tristate "OmniVision OV13850 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV13850 camera.
+
+config VIDEO_OV13855
+	tristate "OmniVision OV13855 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV13850 camera.
+
 config VIDEO_AP1302
 	tristate "ON Semiconductor's Advanced Image Coporcessor AP1302 support"
 	depends on OF
