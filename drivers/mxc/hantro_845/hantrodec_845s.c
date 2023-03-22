@@ -1544,11 +1544,11 @@ static int hantrodec_release(struct inode *inode, struct file *filp)
 
 	if (ctx->core_id == HANTRO_CORE_ID_INVALID) {
 		for (n = 0; n < cores; n++) {
-			pm_runtime_put_sync(hantrodec_data[n].dev);
+			//pm_runtime_put_sync(hantrodec_data[n].dev);
 			hantro_clk_disable(&hantrodec_data[n].clk);
 		}
 	} else if (ctx->core_id < HXDEC_MAX_CORES) {
-		pm_runtime_put_sync(hantrodec_data[ctx->core_id].dev);
+		//pm_runtime_put_sync(hantrodec_data[ctx->core_id].dev);
 		hantro_clk_disable(&hantrodec_data[ctx->core_id].clk);
 	}
 
