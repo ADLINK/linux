@@ -478,11 +478,13 @@ static int dwmac4_add_hw_vlan_rx_fltr(struct net_device *dev,
 	if (vid > 4095)
 		return -EINVAL;
 
+#if 0
 	if (hw->promisc) {
 		netdev_err(dev,
 			   "Adding VLAN in promisc mode not supported\n");
 		return -EPERM;
 	}
+#endif
 
 	/* Single Rx VLAN Filter */
 	if (hw->num_vlan == 1) {
@@ -533,11 +535,13 @@ static int dwmac4_del_hw_vlan_rx_fltr(struct net_device *dev,
 {
 	int i, ret = 0;
 
+#if 0
 	if (hw->promisc) {
 		netdev_err(dev,
 			   "Deleting VLAN in promisc mode not supported\n");
 		return -EPERM;
 	}
+#endif
 
 	/* Single Rx VLAN Filter */
 	if (hw->num_vlan == 1) {
