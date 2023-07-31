@@ -317,7 +317,6 @@ config SND_SOC_IMX_SPDIF
 config SND_SOC_IMX_TLV320AIC3X
 	tristate "SoC Audio support for i.MX6 boards with tlv320aic3x audio codec"
 	depends on OF && I2C
-	select SND_SOC_TLV320AIC3X
 	select SND_SOC_IMX_PCM_DMA
 	select SND_SOC_IMX_AUDMUX
 	select SND_SOC_FSL_SAI

@@ -44,7 +44,7 @@ static int imx_tlv320aic3x_dai_init(struct snd_soc_pcm_runtime *rtd)
 	struct device *dev = rtd->card->dev;
 	int ret;
 
-	ret = snd_soc_dai_set_sysclk(codec_dai, 0,
+	ret = snd_soc_dai_set_sysclk(asoc_rtd_to_codec(rtd, 0), 0,
 				     data->clk_frequency, SND_SOC_CLOCK_IN);
 	if (ret) {
 		dev_err(dev, "could not set codec driver clock params\n");
