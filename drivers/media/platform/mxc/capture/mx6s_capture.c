@@ -261,11 +261,53 @@ static struct mx6s_fmt formats[] = {
 		.mbus_code	= MEDIA_BUS_FMT_AYUV8_1X32,
 		.bpp		= 4,
 	}, {
+		.name		= "RAWRGB8 (SRGGB8)",
+		.fourcc		= V4L2_PIX_FMT_SRGGB8,
+		.pixelformat	= V4L2_PIX_FMT_SRGGB8,
+		.mbus_code	= MEDIA_BUS_FMT_SRGGB8_1X8,
+		.bpp		= 1,
+	}, {
+		.name		= "RAWRGB8 (SGRBG8)",
+		.fourcc		= V4L2_PIX_FMT_SGRBG8,
+		.pixelformat	= V4L2_PIX_FMT_SGRBG8,
+		.mbus_code	= MEDIA_BUS_FMT_SGRBG8_1X8,
+		.bpp		= 1,
+	}, {
+		.name		= "RAWRGB8 (SGBRG8)",
+		.fourcc		= V4L2_PIX_FMT_SGBRG8,
+		.pixelformat	= V4L2_PIX_FMT_SGBRG8,
+		.mbus_code	= MEDIA_BUS_FMT_SGBRG8_1X8,
+		.bpp		= 1,
+	}, {
 		.name		= "RAWRGB8 (SBGGR8)",
 		.fourcc		= V4L2_PIX_FMT_SBGGR8,
 		.pixelformat	= V4L2_PIX_FMT_SBGGR8,
 		.mbus_code	= MEDIA_BUS_FMT_SBGGR8_1X8,
 		.bpp		= 1,
+	}, {
+		.name		= "RAWRGB10 (SRGGB10)",
+		.fourcc		= V4L2_PIX_FMT_SRGGB10,
+		.pixelformat	= V4L2_PIX_FMT_SRGGB10,
+		.mbus_code	= MEDIA_BUS_FMT_SRGGB10_1X10,
+		.bpp		= 2,
+	}, {
+		.name		= "RAWRGB10 (SGRBG10)",
+		.fourcc		= V4L2_PIX_FMT_SGRBG10,
+		.pixelformat	= V4L2_PIX_FMT_SGRBG10,
+		.mbus_code	= MEDIA_BUS_FMT_SGRBG10_1X10,
+		.bpp		= 2,
+	}, {
+		.name		= "RAWRGB8 (SGBRG10)",
+		.fourcc		= V4L2_PIX_FMT_SGBRG10,
+		.pixelformat	= V4L2_PIX_FMT_SGBRG10,
+		.mbus_code	= MEDIA_BUS_FMT_SGBRG10_1X10,
+		.bpp		= 2,
+	}, {
+		.name		= "RAWRGB8 (SBGGR10)",
+		.fourcc		= V4L2_PIX_FMT_SBGGR10,
+		.pixelformat	= V4L2_PIX_FMT_SBGGR10,
+		.mbus_code	= MEDIA_BUS_FMT_SBGGR10_1X10,
+		.bpp		= 2,
 	}
 };
 
@@ -837,7 +879,14 @@ static int mx6s_configure_csi(struct mx6s_csi_dev *csi_dev)
 
 	switch (csi_dev->fmt->pixelformat) {
 	case V4L2_PIX_FMT_YUV32:
+	case V4L2_PIX_FMT_SRGGB8:
+	case V4L2_PIX_FMT_SGRBG8:
+	case V4L2_PIX_FMT_SGBRG8:
 	case V4L2_PIX_FMT_SBGGR8:
+	case V4L2_PIX_FMT_SRGGB10:
+	case V4L2_PIX_FMT_SGRBG10:
+	case V4L2_PIX_FMT_SGBRG10:
+	case V4L2_PIX_FMT_SBGGR10:
 		width = pix->width;
 		break;
 	case V4L2_PIX_FMT_UYVY:
@@ -868,8 +917,17 @@ static int mx6s_configure_csi(struct mx6s_csi_dev *csi_dev)
 		case V4L2_PIX_FMT_YUYV:
 			cr18 |= BIT_MIPI_DATA_FORMAT_YUV422_8B;
 			break;
+		case V4L2_PIX_FMT_SRGGB8:
+		case V4L2_PIX_FMT_SGRBG8:
+		case V4L2_PIX_FMT_SGBRG8:
 		case V4L2_PIX_FMT_SBGGR8:
 			cr18 |= BIT_MIPI_DATA_FORMAT_RAW8;
+			break;
+		case V4L2_PIX_FMT_SRGGB10:
+		case V4L2_PIX_FMT_SGRBG10:
+		case V4L2_PIX_FMT_SGBRG10:
+		case V4L2_PIX_FMT_SBGGR10:
+			cr18 |= BIT_MIPI_DATA_FORMAT_RAW10;
 			break;
 		default:
 			pr_debug("   fmt not supported\n");

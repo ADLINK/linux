@@ -1439,7 +1439,7 @@ static int ov5647_enum_frameintervals(struct v4l2_subdev *sd,
 
 	if (fie->width == 0 || fie->height == 0 ||
 	    fie->code == 0) {
-		pr_warning("Please assign pixel format, width and height.\n");
+		pr_info("Please assign pixel format, width and height.\n");
 		return -EINVAL;
 	}
 
@@ -1642,13 +1642,13 @@ static int ov5647_probe(struct i2c_client *client,
 
 	retval = ov5647_read_reg(OV5647_CHIP_ID_HIGH_BYTE, &chip_id_high);
 	if (retval < 0 || chip_id_high != 0x56) {
-		pr_warning("camera ov5647_mipi is not found\n");
+		pr_info("camera ov5647_mipi is not found\n");
 		clk_disable_unprepare(ov5647_data.sensor_clk);
 		return -ENODEV;
 	}
 	retval = ov5647_read_reg(OV5647_CHIP_ID_LOW_BYTE, &chip_id_low);
 	if (retval < 0 || chip_id_low != 0x47) {
-		pr_warning("camera ov5647_mipi is not found\n");
+		pr_info("camera ov5647_mipi is not found\n");
 		clk_disable_unprepare(ov5647_data.sensor_clk);
 		return -ENODEV;
 	}
@@ -1656,7 +1656,7 @@ static int ov5647_probe(struct i2c_client *client,
 	retval = init_device();
 	if (retval < 0) {
 		clk_disable_unprepare(ov5647_data.sensor_clk);
-		pr_warning("camera ov5647 init failed\n");
+		pr_info("camera ov5647 init failed\n");
 		ov5647_power_down(1);
 		return retval;
 	}
