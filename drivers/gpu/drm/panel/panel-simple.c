@@ -4534,6 +4534,9 @@ static const struct panel_desc arm_rtsm = {
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
 };
 
+
+
+
 static const struct of_device_id platform_of_match[] = {
 	{
 		.compatible = "ampire,am-1280800n3tzqw-t00h",
@@ -5234,6 +5237,32 @@ static const struct panel_desc_dsi osd101t2045_53ts = {
 	.lanes = 4,
 };
 
+static const struct drm_display_mode adlink_lt9611_mode = {
+	.clock = 148500,
+	.hdisplay = 1920,
+	.hsync_start = 1920 + 148,
+	.hsync_end = 1920 + 148 + 88,
+	.htotal = 1920 + 148 + 88 + 44,
+	.vdisplay = 1080,
+	.vsync_start = 1080 + 36,
+	.vsync_end = 1080 + 36 + 4,
+	.vtotal = 1080 + 36 + 4 + 5,
+};
+
+static const struct panel_desc_dsi adlink_lt9611 = {
+	.desc = {
+		.modes = &adlink_lt9611_mode,
+		.num_modes = 1,
+		.bpc = 8,
+		.size = {
+			.width = 68,
+			.height = 121,
+		},
+	},
+	.flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST | MIPI_DSI_MODE_LPM,
+	.format = MIPI_DSI_FMT_RGB888,
+	.lanes = 4,
+};
 static const struct of_device_id dsi_of_match[] = {
 	{
 		.compatible = "auo,b080uan01",
@@ -5256,6 +5285,9 @@ static const struct of_device_id dsi_of_match[] = {
 	}, {
 		.compatible = "osddisplays,osd101t2045-53ts",
 		.data = &osd101t2045_53ts
+	}, {
+		.compatible = "adlink,lt9611-bridge",
+		.data = &adlink_lt9611
 	}, {
 		/* sentinel */
 	}

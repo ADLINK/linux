@@ -3,6 +3,7 @@
 dtb-$(CONFIG_ARCH_MXC) += \
      \
     lec-imx8mm-auoB101UAN01-mipi-panel.dtb \
+    lec-imx8mm-lt9611.dtb \
     lec-imx8mm-ov5647.dtb \
     lec-imx8mm-imx219.dtb \
     lec-imx8mm-ov13855.dtb \
