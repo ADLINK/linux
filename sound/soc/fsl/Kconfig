@@ -294,6 +294,19 @@ config SND_SOC_IMX_WM8960
 	  Say Y if you want to add support for SoC audio on an i.MX board with
 	  a wm8960 codec.
 
+config SND_SOC_IMX_RT5640
+	tristate "SoC Audio support for i.MX boards with rt5640"
+	depends on OF && I2C
+	select SND_SOC_RT5640
+	select SND_SOC_IMX_PCM_DMA
+	select SND_SOC_FSL_SAI
+	select SND_SOC_FSL_UTILS
+	select SND_KCTL_JACK
+	help
+	  SoC Audio support for i.MX boards with RT5640
+	  Say Y if you want to add support for SoC audio on an i.MX board with
+	  a rt5640 codec.
+
 config SND_SOC_IMX_ES8328
 	tristate "SoC Audio support for i.MX boards with the ES8328 codec"
 	depends on OF && (I2C || SPI)
