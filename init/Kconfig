@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
+
 config CC_VERSION_TEXT
 	string
 	default "$(CC_VERSION_TEXT)"
@@ -15,6 +16,12 @@ config CC_VERSION_TEXT
 	    line so fixdep adds include/config/CC_VERSION_TEXT into the
 	    auto-generated dependency. When the compiler is updated, syncconfig
 	    will touch it and then every file will be rebuilt.
+config ADLINK_LECIMX8MM
+        bool
+        help
+          Select this to enable ADLINK modified code block. 
+        default y
+
 
 config CC_IS_GCC
 	def_bool $(success,test "$(cc-name)" = GCC)
