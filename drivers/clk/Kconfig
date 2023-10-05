@@ -389,6 +389,15 @@ config COMMON_CLK_K210
 	default SOC_CANAAN
 	help
 	  Support for the Canaan Kendryte K210 RISC-V SoC clocks.
+	  
+config COMMON_CLK_RS9_PCIE
+	tristate "Clock driver for Renesas 9-series PCIe clock generators"
+	depends on I2C
+	depends on OF
+	select REGMAP_I2C
+	help
+	  This driver supports the Renesas 9-series PCIe clock generator
+	  models 9FGV/9DBV/9DMV/9FGL/9DML/9QXL/9SQ.	  
 
 source "drivers/clk/actions/Kconfig"
 source "drivers/clk/analogbits/Kconfig"
@@ -421,5 +430,6 @@ source "drivers/clk/uniphier/Kconfig"
 source "drivers/clk/x86/Kconfig"
 source "drivers/clk/xilinx/Kconfig"
 source "drivers/clk/zynqmp/Kconfig"
+
 
 endif
