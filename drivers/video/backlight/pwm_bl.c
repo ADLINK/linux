@@ -28,8 +28,10 @@ struct pwm_bl_data {
 	struct regulator	*power_supply;
 	struct gpio_desc	*enable_gpio;
 	unsigned int		scale;
+	unsigned int		pre_pwm_on_delay;
 	unsigned int		post_pwm_on_delay;
 	unsigned int		pwm_off_delay;
+	unsigned int		post_pwm_off_delay;
 	int			(*notify)(struct device *,
 					  int brightness);
 	void			(*notify_after)(struct device *,
@@ -45,6 +47,9 @@ static void pwm_backlight_power_on(struct pwm_bl_data *pb)
 
 	if (pb->enabled)
 		return;
+
+	if (pb->pre_pwm_on_delay)
+		msleep(pb->pre_pwm_on_delay);
 
 	if (pb->power_supply) {
 		err = regulator_enable(pb->power_supply);
@@ -73,6 +78,9 @@ static void pwm_backlight_power_off(struct pwm_bl_data *pb)
 	if (pb->power_supply)
 		regulator_disable(pb->power_supply);
 	pb->enabled = false;
+
+	if (pb->post_pwm_off_delay)
+		msleep(pb->post_pwm_off_delay);
 }
 
 static int compute_duty_cycle(struct pwm_bl_data *pb, int brightness, struct pwm_state *state)
@@ -265,9 +273,13 @@ static int pwm_backlight_parse_dt(struct device *dev,
 	 * These values are optional and set as 0 by default, the out values
 	 * are modified only if a valid u32 value can be decoded.
 	 */
+	of_property_read_u32(node, "pre-pwm-on-delay-ms",
+			     &data->pre_pwm_on_delay);
 	of_property_read_u32(node, "post-pwm-on-delay-ms",
 			     &data->post_pwm_on_delay);
 	of_property_read_u32(node, "pwm-off-delay-ms", &data->pwm_off_delay);
+	of_property_read_u32(node, "post-pwm-off-delay-ms",
+			     &data->post_pwm_off_delay);
 
 	/*
 	 * Determine the number of brightness levels, if this property is not
@@ -504,8 +516,10 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	pb->exit = data->exit;
 	pb->dev = &pdev->dev;
 	pb->enabled = false;
+	pb->pre_pwm_on_delay = data->pre_pwm_on_delay;
 	pb->post_pwm_on_delay = data->post_pwm_on_delay;
 	pb->pwm_off_delay = data->pwm_off_delay;
+	pb->post_pwm_off_delay = data->post_pwm_off_delay;
 	strcpy(pb->fb_id, data->fb_id);
 
 	pb->enable_gpio = devm_gpiod_get_optional(&pdev->dev, "enable",
