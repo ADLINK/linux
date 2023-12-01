@@ -42,6 +42,7 @@ struct panel_lvds {
 
 	enum drm_panel_orientation orientation;
 
+	bool skip_blpwr_off;
 	unsigned int enable_delay;
 	unsigned int post_prepare_delay;
 	unsigned int pre_disable_delay;
@@ -81,13 +82,16 @@ static int panel_lvds_prepare(struct drm_panel *panel)
 	struct panel_lvds *lvds = to_panel_lvds(panel);
 
 	if (lvds->supply) {
-		int err;
-
-		err = regulator_enable(lvds->supply);
-		if (err < 0) {
-			dev_err(lvds->dev, "failed to enable supply: %d\n",
-				err);
-			return err;
+		/* if skip_blpwr_off is set, then don't enable supply. Leave it for blpwm to enable.
+		   NOTE: supply regulator must be the same regulator as the blpwm power-supply */
+		if (!lvds->skip_blpwr_off) {
+			int err;
+			err = regulator_enable(lvds->supply);
+			if (err < 0) {
+				dev_err(lvds->dev, "failed to enable supply: %d\n",
+					err);
+				return err;
+			}
 		}
 	}
 
@@ -197,7 +201,7 @@ static int panel_lvds_parse_dt(struct panel_lvds *lvds)
 	lvds->post_unprepare_delay = 0;
 	of_property_read_u32(np, "post-unprepare-delay-ms",
 			     &lvds->post_unprepare_delay);
-
+	lvds->skip_blpwr_off = of_property_read_bool(np, "skip-blpwr-off");
 
 	return 0;
 }

@@ -32,6 +32,7 @@ struct pwm_bl_data {
 	unsigned int		post_pwm_on_delay;
 	unsigned int		pwm_off_delay;
 	unsigned int		post_pwm_off_delay;
+	bool			skip_blpwr_off;
 	int			(*notify)(struct device *,
 					  int brightness);
 	void			(*notify_after)(struct device *,
@@ -75,8 +76,11 @@ static void pwm_backlight_power_off(struct pwm_bl_data *pb)
 	if (pb->pwm_off_delay)
 		msleep(pb->pwm_off_delay);
 
-	if (pb->power_supply)
-		regulator_disable(pb->power_supply);
+	if (!pb->skip_blpwr_off)
+	/* if skip_blpwr_off is set, then don't disable supply. Leave it for lvds-panel to disable.
+	   NOTE: this supply regulator must be set to the lvds0-panel */
+		if (pb->power_supply)
+			regulator_disable(pb->power_supply);
 	pb->enabled = false;
 
 	if (pb->post_pwm_off_delay)
@@ -280,6 +284,7 @@ static int pwm_backlight_parse_dt(struct device *dev,
 	of_property_read_u32(node, "pwm-off-delay-ms", &data->pwm_off_delay);
 	of_property_read_u32(node, "post-pwm-off-delay-ms",
 			     &data->post_pwm_off_delay);
+	data->skip_blpwr_off = of_property_read_bool(node, "skip-blpwr-off");
 
 	/*
 	 * Determine the number of brightness levels, if this property is not
@@ -520,6 +525,7 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	pb->post_pwm_on_delay = data->post_pwm_on_delay;
 	pb->pwm_off_delay = data->pwm_off_delay;
 	pb->post_pwm_off_delay = data->post_pwm_off_delay;
+	pb->skip_blpwr_off = data->skip_blpwr_off;
 	strcpy(pb->fb_id, data->fb_id);
 
 	pb->enable_gpio = devm_gpiod_get_optional(&pdev->dev, "enable",
