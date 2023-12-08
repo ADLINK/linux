@@ -75,6 +75,13 @@
 #define RTL_GENERIC_PHYID			0x001cc800
 #define RTL_8211FVD_PHYID			0x001cc878
 
+#define RTL8211F_PAGSEL_LCR				0xd04
+#define RTL8211F_LCR					0x10 /* LED Control Register */
+#define RTL8211F_LCR_LED1_MASK			(BIT(5) | BIT(6) | BIT(8) | BIT(9))
+#define RTL8211F_LCR_LED1_SPEED			(BIT(6) | BIT(8))
+#define RTL8211F_LCR_LED2_MASK			(BIT(10) | BIT(11) | BIT(13) | BIT(14))
+#define RTL8211F_LCR_LED2_LINKACTIVE	(BIT(10) | BIT(11) | BIT(13) | BIT(14))
+
 MODULE_DESCRIPTION("Realtek PHY driver");
 MODULE_AUTHOR("Johnson Leung");
 MODULE_LICENSE("GPL");
@@ -142,6 +149,21 @@ static int rtl821x_probe(struct phy_device *phydev)
 	phydev->priv = priv;
 
 	return 0;
+}
+
+static void rtl8211f_setup_led(struct phy_device *phydev) {
+	/* By default the EEE LED mode is enabled */
+	/*
+	 * configure led behaviour, LCR Page: 0xd04, Addr: 0x10
+	 * bit [15:8] |xxxx|LED2_ACT|LED2_LINK_1000|xxxx|  |LED2_LINK_100|LED2_LINK_10|LED1_ACT|LED1_LINK_1000|
+	 * bit [7:0]  |xxxx|LED1_LINK_100|LED1_LINK_10|LED0_ACT|  |LED0_LINK_1000|xxxx|LED0_LINK_100|LED0_LINK_10|
+	 * LED2(Y): link/activity, LED1(G): speed
+	 * Yellow = LED2_ACT + LED2_LINK1000 + LED2_LINK100
+	 * Green = LED1_LINK1000 + LED1_LLINK100
+	 */
+	phy_modify_paged_changed(phydev, RTL8211F_PAGSEL_LCR, RTL8211F_LCR,
+					RTL8211F_LCR_LED1_MASK | RTL8211F_LCR_LED1_MASK,
+					RTL8211F_LCR_LED1_SPEED | RTL8211F_LCR_LED2_LINKACTIVE);
 }
 
 static int rtl8201_ack_interrupt(struct phy_device *phydev)
@@ -435,6 +457,8 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 			ERR_PTR(ret));
 		return ret;
 	}
+
+	rtl8211f_setup_led(phydev);
 
 	return genphy_soft_reset(phydev);
 }
