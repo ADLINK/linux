@@ -37,9 +37,16 @@
 #define TPM_RETRY		50
 
 enum tpm_timeout {
+#ifdef CONFIG_TCG_TIS_I2C
+       TPM_TIMEOUT = 1,        /* msecs */
+       TPM_TIMEOUT_RETRY = 2, /* msecs */
+       TPM_TIMEOUT_RANGE_US = 20,      /* usecs */
+#else
+
 	TPM_TIMEOUT = 5,	/* msecs */
 	TPM_TIMEOUT_RETRY = 100, /* msecs */
 	TPM_TIMEOUT_RANGE_US = 300,	/* usecs */
+#endif
 	TPM_TIMEOUT_POLL = 1,	/* msecs */
 	TPM_TIMEOUT_USECS_MIN = 100,      /* usecs */
 	TPM_TIMEOUT_USECS_MAX = 500      /* usecs */
@@ -57,6 +64,17 @@ enum tpm_addr {
 #define TPM_ERR_DISABLED        0x7
 #define TPM_ERR_FAILEDSELFTEST  0x1C
 #define TPM_ERR_INVALID_POSTINIT 38
+#define TPM_HEADER_SIZE                10
+
+/* Indicates from what layer of the software stack the error comes from */
+#define TSS2_RC_LAYER_SHIFT     16
+#define TSS2_RESMGR_TPM_RC_LAYER (11 << TSS2_RC_LAYER_SHIFT)
+
+#define TPM_VID_INTEL    0x8086
+#define TPM_VID_WINBOND  0x1050
+#define TPM_VID_STM      0x104A
+
+#define to_tpm_chip(d) container_of(d, struct tpm_chip, dev)
 
 #define TPM_TAG_RQU_COMMAND 193
 
@@ -260,8 +278,14 @@ int tpm_class_shutdown(struct device *dev);
 
 static inline void tpm_msleep(unsigned int delay_msec)
 {
+#ifdef CONFIG_TCG_TIS_I2C
+       usleep_range(delay_msec * 1000,
+                       (delay_msec * 1000) + TPM_TIMEOUT_RANGE_US);
+#else
+
 	usleep_range((delay_msec * 1000) - TPM_TIMEOUT_RANGE_US,
 		     delay_msec * 1000);
+#endif
 };
 
 int tpm_chip_bootstrap(struct tpm_chip *chip);

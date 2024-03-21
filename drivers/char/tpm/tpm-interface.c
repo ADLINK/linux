@@ -65,6 +65,7 @@ static ssize_t tpm_try_transmit(struct tpm_chip *chip, void *buf, size_t bufsiz)
 	ssize_t len = 0;
 	u32 count, ordinal;
 	unsigned long stop;
+       unsigned int delay_msec = TPM_TIMEOUT_POLL;
 
 	if (bufsiz < TPM_HEADER_SIZE)
 		return -EINVAL;
@@ -115,6 +116,11 @@ static ssize_t tpm_try_transmit(struct tpm_chip *chip, void *buf, size_t bufsiz)
 		}
 
 		tpm_msleep(TPM_TIMEOUT_POLL);
+               //change ST@2020.10.29
+               //tpm_msleep(TPM_TIMEOUT_POLL);
+               tpm_msleep(delay_msec);
+               delay_msec = delay_msec+delay_msec;
+
 		rmb();
 	} while (time_before(jiffies, stop));
 
@@ -157,6 +163,7 @@ ssize_t tpm_transmit(struct tpm_chip *chip, u8 *buf, size_t bufsiz)
 	u8 save[TPM_HEADER_SIZE + 3*sizeof(u32)];
 	unsigned int delay_msec = TPM2_DURATION_SHORT;
 	u32 rc = 0;
+	u32 i = TPM_RETRY;
 	ssize_t ret;
 	const size_t save_size = min(sizeof(save), bufsiz);
 	/* the command code is where the return code will be */
@@ -172,7 +179,14 @@ ssize_t tpm_transmit(struct tpm_chip *chip, u8 *buf, size_t bufsiz)
 	for (;;) {
 		ret = tpm_try_transmit(chip, buf, bufsiz);
 		if (ret < 0)
-			break;
+               {
+                       i--;
+                       if (i<=0)
+                               break;
+               }
+               else
+               {
+
 		rc = be32_to_cpu(header->return_code);
 		if (rc != TPM2_RC_RETRY && rc != TPM2_RC_TESTING)
 			break;
@@ -194,6 +208,7 @@ ssize_t tpm_transmit(struct tpm_chip *chip, u8 *buf, size_t bufsiz)
 		tpm_msleep(delay_msec);
 		delay_msec *= 2;
 		memcpy(buf, save, save_size);
+	       }
 	}
 	return ret;
 }

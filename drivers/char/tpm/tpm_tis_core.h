@@ -75,6 +75,11 @@ enum tis_defaults {
 #define	TPM_STS(l)			(0x0018 | ((l) << 12))
 #define	TPM_STS3(l)			(0x001b | ((l) << 12))
 #define	TPM_DATA_FIFO(l)		(0x0024 | ((l) << 12))
+#ifdef CONFIG_TCG_TIS_I2C
+/* fix BHO I2C implementation */
+#define        TPM_INTF_CAPABILITY(l)          (0x0030 | ((l) << 12))
+/* fix BHO I2C implementation */
+#endif
 
 #define	TPM_DID_VID(l)			(0x0F00 | ((l) << 12))
 #define	TPM_RID(l)			(0x0F04 | ((l) << 12))
@@ -94,6 +99,12 @@ enum tpm_tis_flags {
 struct tpm_tis_data {
 	struct tpm_chip *chip;
 	u16 manufacturer_id;
+#ifdef CONFIG_TCG_TIS_I2C
+       /* fix BHO I2C implementation */
+       u8 interface_id;
+       /* fix BHO I2C implementation */
+#endif
+
 	struct mutex locality_count_mutex;
 	unsigned int locality_count;
 	int locality;
@@ -132,6 +143,8 @@ struct tpm_tis_phy_ops {
 			   const u8 *value, enum tpm_tis_io_mode mode);
 	int (*verify_crc)(struct tpm_tis_data *data, size_t len,
 			  const u8 *value);
+       bool (*check_data)(struct tpm_tis_data *data, u8 *buf, size_t len);
+
 };
 
 static inline int tpm_tis_read_bytes(struct tpm_tis_data *data, u32 addr,
@@ -152,6 +165,7 @@ static inline int tpm_tis_read16(struct tpm_tis_data *data, u32 addr,
 	__le16 result_le;
 	int rc;
 
+
 	rc = data->phy_ops->read_bytes(data, addr, sizeof(u16),
 				       (u8 *)&result_le, TPM_TIS_PHYS_16);
 	if (!rc)
@@ -165,6 +179,7 @@ static inline int tpm_tis_read32(struct tpm_tis_data *data, u32 addr,
 {
 	__le32 result_le;
 	int rc;
+
 
 	rc = data->phy_ops->read_bytes(data, addr, sizeof(u32),
 				       (u8 *)&result_le, TPM_TIS_PHYS_32);
