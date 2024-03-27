@@ -300,6 +300,20 @@ config SND_SOC_IMX_WM8960
 	  Say Y if you want to add support for SoC audio on an i.MX board with
 	  a wm8960 codec.
 
+config SND_SOC_IMX_TLV320AIC3X
+       tristate "SoC Audio support for i.MX6 boards with tlv320aic3x audio codec"
+       depends on OF && I2C
+       select SND_SOC_IMX_PCM_DMA
+       select SND_SOC_IMX_AUDMUX
+       select SND_SOC_FSL_SAI
+       select SND_SOC_FSL_UTILS
+       select SND_KCTL_JACK
+    help
+         SoC audio for i.MX8M boards with codec TLV320AIC3x attached over
+         SSI interface.
+         Say Y if you want to add support for SoC audio on LEC-iMX8MP boards.
+
+
 config SND_SOC_IMX_ES8328
 	tristate "SoC Audio support for i.MX boards with the ES8328 codec"
 	depends on OF && (I2C || SPI)
