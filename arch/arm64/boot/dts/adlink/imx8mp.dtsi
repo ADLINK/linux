@@ -227,7 +227,7 @@
 		linux,cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0 0x3c000000>;
+			size = <0 0x20000000>;
 			alloc-ranges = <0 0x40000000 0 0xC0000000>;
 			linux,cma-default;
 		};
@@ -387,13 +387,13 @@
 			thermal-sensors = <&tmu 0>;
 			trips {
 				cpu_alert0: trip0 {
-					temperature = <85000>;
+					temperature = <100000>;
 					hysteresis = <2000>;
 					type = "passive";
 				};
 
 				cpu_crit0: trip1 {
-					temperature = <95000>;
+					temperature = <105000>;
 					hysteresis = <2000>;
 					type = "critical";
 				};
@@ -418,13 +418,13 @@
 			thermal-sensors = <&tmu 1>;
 			trips {
 				soc_alert0: trip0 {
-					temperature = <85000>;
+					temperature = <100000>;
 					hysteresis = <2000>;
 					type = "passive";
 				};
 
 				soc_crit0: trip1 {
-					temperature = <95000>;
+					temperature = <105000>;
 					hysteresis = <2000>;
 					type = "critical";
 				};
