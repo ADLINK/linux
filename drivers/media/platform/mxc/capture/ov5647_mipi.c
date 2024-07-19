@@ -299,7 +299,7 @@ static struct regulator *gpo_regulator;
 
 static int ov5647_probe(struct i2c_client *adapter,
 				const struct i2c_device_id *device_id);
-static int ov5647_remove(struct i2c_client *client);
+static void ov5647_remove(struct i2c_client *client);
 
 static s32 ov5647_read_reg(u16 reg, u8 *val);
 static s32 ov5647_write_reg(u16 reg, u8 val);
@@ -1341,7 +1341,7 @@ static int ov5647_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *a)
 }
 
 static int ov5647_set_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_state *cfg,
 			  struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *mf = &format->format;
@@ -1365,7 +1365,7 @@ static int ov5647_set_fmt(struct v4l2_subdev *sd,
 }
 
 static int ov5647_get_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
++			  struct v4l2_subdev_state *cfg,
 			  struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *mf = &format->format;
@@ -1384,7 +1384,7 @@ static int ov5647_get_fmt(struct v4l2_subdev *sd,
 }
 
 static int ov5647_enum_mbus_code(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
++				 struct v4l2_subdev_state *cfg,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->pad || code->index >= ARRAY_SIZE(ov5647_colour_fmts))
@@ -1403,7 +1403,7 @@ static int ov5647_enum_mbus_code(struct v4l2_subdev *sd,
  * Return 0 if successful, otherwise -EINVAL.
  */
 static int ov5647_enum_framesizes(struct v4l2_subdev *sd,
-			       struct v4l2_subdev_pad_config *cfg,
++			       struct v4l2_subdev_state *cfg,
 			       struct v4l2_subdev_frame_size_enum *fse)
 {
 	if (fse->index > ov5647_mode_MAX)
@@ -1429,7 +1429,7 @@ static int ov5647_enum_framesizes(struct v4l2_subdev *sd,
  * Return 0 if successful, otherwise -EINVAL.
  */
 static int ov5647_enum_frameintervals(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
++		struct v4l2_subdev_state *cfg,
 		struct v4l2_subdev_frame_interval_enum *fie)
 {
 	int i, j, count;
@@ -1439,7 +1439,7 @@ static int ov5647_enum_frameintervals(struct v4l2_subdev *sd,
 
 	if (fie->width == 0 || fie->height == 0 ||
 	    fie->code == 0) {
-		pr_warning("Please assign pixel format, width and height.\n");
++		pr_info("Please assign pixel format, width and height.\n");
 		return -EINVAL;
 	}
 
@@ -1642,13 +1642,13 @@ static int ov5647_probe(struct i2c_client *client,
 
 	retval = ov5647_read_reg(OV5647_CHIP_ID_HIGH_BYTE, &chip_id_high);
 	if (retval < 0 || chip_id_high != 0x56) {
-		pr_warning("camera ov5647_mipi is not found\n");
+		pr_info("camera ov5647_mipi is not found\n");
 		clk_disable_unprepare(ov5647_data.sensor_clk);
 		return -ENODEV;
 	}
 	retval = ov5647_read_reg(OV5647_CHIP_ID_LOW_BYTE, &chip_id_low);
 	if (retval < 0 || chip_id_low != 0x47) {
-		pr_warning("camera ov5647_mipi is not found\n");
+		pr_info("camera ov5647_mipi is not found\n");
 		clk_disable_unprepare(ov5647_data.sensor_clk);
 		return -ENODEV;
 	}
@@ -1656,7 +1656,7 @@ static int ov5647_probe(struct i2c_client *client,
 	retval = init_device();
 	if (retval < 0) {
 		clk_disable_unprepare(ov5647_data.sensor_clk);
-		pr_warning("camera ov5647 init failed\n");
+		pr_info("camera ov5647 init failed\n");
 		ov5647_power_down(1);
 		return retval;
 	}
@@ -1680,7 +1680,7 @@ static int ov5647_probe(struct i2c_client *client,
  * @param client            struct i2c_client *
  * @return  Error code indicating success or failure
  */
-static int ov5647_remove(struct i2c_client *client)
+static void ov5647_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 
@@ -1702,7 +1702,6 @@ static int ov5647_remove(struct i2c_client *client)
 	if (io_regulator)
 		regulator_disable(io_regulator);
 
-	return 0;
 }
 
 module_i2c_driver(ov5647_i2c_driver);

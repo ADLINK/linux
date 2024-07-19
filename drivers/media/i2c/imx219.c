@@ -21,13 +21,14 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
-
+#include <linux/pinctrl/consumer.h>
 #include <media/v4l2-cci.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-mediabus.h>
+#include <linux/of_gpio.h>
 
 /* Chip ID */
 #define IMX219_REG_CHIP_ID		CCI_REG16(0x0000)
@@ -449,7 +450,8 @@ struct imx219 {
 	struct clk *xclk; /* system clock to IMX219 */
 	u32 xclk_freq;
 
-	struct gpio_desc *reset_gpio;
+	unsigned reset_gpio;
+	unsigned power_gpio;
 	struct regulator_bulk_data supplies[IMX219_NUM_SUPPLIES];
 
 	struct v4l2_ctrl_handler ctrl_handler;
@@ -605,7 +607,7 @@ static int imx219_init_cfg(struct v4l2_subdev *sd,
 	/* Initialize the format. */
 	format = v4l2_subdev_get_pad_format(sd, state, 0);
 	imx219_update_pad_format(imx219, &supported_modes[0], format,
-				 MEDIA_BUS_FMT_SRGGB10_1X10);
+				 MEDIA_BUS_FMT_SBGGR8_1X8);
 
 	/* Initialize the crop rectangle. */
 	crop = v4l2_subdev_get_pad_crop(sd, state, 0);
@@ -914,44 +916,55 @@ unlock:
 /* Power/clock management functions */
 static int imx219_power_on(struct device *dev)
 {
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct imx219 *imx219 = to_imx219(sd);
 	int ret;
 
-	ret = regulator_bulk_enable(IMX219_NUM_SUPPLIES,
-				    imx219->supplies);
-	if (ret) {
-		dev_err(dev, "%s: failed to enable regulators\n",
-			__func__);
-		return ret;
-	}
+	gpio_set_value(imx219->power_gpio, 0);
+	usleep_range(IMX219_XCLR_MIN_DELAY_US,
+		     IMX219_XCLR_MIN_DELAY_US + IMX219_XCLR_DELAY_RANGE_US);
+
+	gpio_set_value(imx219->reset_gpio, 0);
+	usleep_range(IMX219_XCLR_MIN_DELAY_US,
+		     IMX219_XCLR_MIN_DELAY_US + IMX219_XCLR_DELAY_RANGE_US);
+
+	gpio_set_value(imx219->power_gpio, 1);
+	usleep_range(IMX219_XCLR_MIN_DELAY_US,
+		     IMX219_XCLR_MIN_DELAY_US + IMX219_XCLR_DELAY_RANGE_US);
 
 	ret = clk_prepare_enable(imx219->xclk);
 	if (ret) {
-		dev_err(dev, "%s: failed to enable clock\n",
+		dev_err(&client->dev, "%s: failed to enable clock\n",
 			__func__);
 		goto reg_off;
 	}
 
-	gpiod_set_value_cansleep(imx219->reset_gpio, 1);
+	gpio_set_value(imx219->reset_gpio, 1);
 	usleep_range(IMX219_XCLR_MIN_DELAY_US,
 		     IMX219_XCLR_MIN_DELAY_US + IMX219_XCLR_DELAY_RANGE_US);
 
 	return 0;
 
 reg_off:
-	regulator_bulk_disable(IMX219_NUM_SUPPLIES, imx219->supplies);
+//	regulator_bulk_disable(IMX219_NUM_SUPPLIES, imx219->supplies);
 
 	return ret;
 }
 
 static int imx219_power_off(struct device *dev)
 {
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct imx219 *imx219 = to_imx219(sd);
 
-	gpiod_set_value_cansleep(imx219->reset_gpio, 0);
-	regulator_bulk_disable(IMX219_NUM_SUPPLIES, imx219->supplies);
+	msleep(10);
+	gpio_set_value(imx219->reset_gpio, 0);
+	usleep_range(IMX219_XCLR_MIN_DELAY_US,
+		     IMX219_XCLR_MIN_DELAY_US + IMX219_XCLR_DELAY_RANGE_US);
+	gpio_set_value(imx219->power_gpio, 0);
+	usleep_range(IMX219_XCLR_MIN_DELAY_US,
+		     IMX219_XCLR_MIN_DELAY_US + IMX219_XCLR_DELAY_RANGE_US);
 	clk_disable_unprepare(imx219->xclk);
 
 	return 0;
@@ -959,7 +972,8 @@ static int imx219_power_off(struct device *dev)
 
 static int __maybe_unused imx219_suspend(struct device *dev)
 {
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct imx219 *imx219 = to_imx219(sd);
 
 	if (imx219->streaming)
@@ -1231,12 +1245,17 @@ error_out:
 static int imx219_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
+	struct pinctrl *pinctrl;
 	struct imx219 *imx219;
 	int ret;
 
 	imx219 = devm_kzalloc(&client->dev, sizeof(*imx219), GFP_KERNEL);
 	if (!imx219)
 		return -ENOMEM;
+
+	pinctrl = devm_pinctrl_get_select_default(dev);
+	if (IS_ERR(pinctrl))
+		dev_warn(dev, "No pin available\n");
 
 	v4l2_i2c_subdev_init(&imx219->sd, client, &imx219_subdev_ops);
 
@@ -1252,7 +1271,7 @@ static int imx219_probe(struct i2c_client *client)
 	}
 
 	/* Get system clock (xclk) */
-	imx219->xclk = devm_clk_get(dev, NULL);
+	imx219->xclk = devm_clk_get(dev, "csi_mclk");
 	if (IS_ERR(imx219->xclk)) {
 		dev_err(dev, "failed to get xclk\n");
 		return PTR_ERR(imx219->xclk);
@@ -1264,17 +1283,32 @@ static int imx219_probe(struct i2c_client *client)
 			imx219->xclk_freq);
 		return -EINVAL;
 	}
-
-	ret = imx219_get_regulators(imx219);
-	if (ret) {
-		dev_err(dev, "failed to get regulators\n");
+		/* Request optional enable pin */
+	imx219->reset_gpio = of_get_named_gpio(dev->of_node, "rst-gpios", 0);
+	if (!gpio_is_valid(imx219->reset_gpio)) {
+		dev_err(dev, "no sensor reset pin available");
+		return -EINVAL;
+	}
+	ret = devm_gpio_request_one(dev, imx219->reset_gpio, GPIOF_OUT_INIT_LOW,
+					"imx219_reset");
+	if (ret < 0) {
+		dev_err(dev, "failed to acquire sensor reset pin");
 		return ret;
 	}
 
 	/* Request optional enable pin */
-	imx219->reset_gpio = devm_gpiod_get_optional(dev, "reset",
-						     GPIOD_OUT_HIGH);
-
+	imx219->power_gpio = of_get_named_gpio(dev->of_node, "pwn-gpios", 0);
+	if (!gpio_is_valid(imx219->power_gpio)) {
+		dev_err(dev, "no sensor power pin available");
+		return -EINVAL;
+	}
+ 
+	ret = devm_gpio_request_one(dev, imx219->power_gpio, GPIOF_OUT_INIT_HIGH,
+					"imx219_pwdn");
+	if (ret < 0) {
+		dev_err(dev, "failed to acquire sensor power pin");
+		return ret;
+	}
 	/*
 	 * The sensor must be powered for imx219_identify_module()
 	 * to be able to read the CHIP_ID register

@@ -1,14 +1,22 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2017 Intel Corporation.
-
+#ifdef CONFIG_ACPI
 #include <linux/acpi.h>
+#endif
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/version.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-event.h>
+#include <linux/clk.h>
+#include <linux/clk-provider.h>
+#include <linux/clkdev.h>
+
+#define OV13858_XCLK_MIN  6000000
+#define OV13858_XCLK_MAX 64000000
 
 #define OV13858_REG_VALUE_08BIT		1
 #define OV13858_REG_VALUE_16BIT		2
@@ -82,6 +90,7 @@
 
 /* Number of frames to skip */
 #define OV13858_NUM_OF_SKIP_FRAMES	2
+#define DPRINT(x)	do { dev_info(x, "%s:%d\n", __FUNCTION__, __LINE__); } while (0)
 
 struct ov13858_reg {
 	u16 address;
@@ -1028,6 +1037,9 @@ static const struct ov13858_mode supported_modes[] = {
 };
 
 struct ov13858 {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,10,0)
+	struct i2c_client *i2c_client;
+#endif
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 
@@ -1044,6 +1056,10 @@ struct ov13858 {
 
 	/* Mutex for serialized access */
 	struct mutex mutex;
+
+	int power_count;
+	struct clk *xclk;
+	u32 xclk_freq;
 
 	/* Streaming on/off */
 	bool streaming;
@@ -1275,6 +1291,37 @@ static const struct v4l2_ctrl_ops ov13858_ctrl_ops = {
 	.s_ctrl = ov13858_set_ctrl,
 };
 
+static int ov13858_s_power(struct v4l2_subdev *sd, int on)
+{
+	struct ov13858 *ov13858 = to_ov13858(sd);
+	struct i2c_client *client = v4l2_get_subdevdata(&ov13858->sd);
+	int ret = 0;
+
+	DPRINT(&client->dev);
+	mutex_lock(&ov13858->mutex);
+
+	if (ov13858->power_count == !on) {
+		//ret = ov13858_set_power(ov13858, !!on);
+
+		ret = clk_prepare_enable(ov13858->xclk);
+		if (ret)
+			goto out;
+	}
+
+	/* Update the power count. */
+	ov13858->power_count += on ? 1 : -1;
+	WARN_ON(ov13858->power_count < 0);
+out:
+	mutex_unlock(&ov13858->mutex);
+
+	if (on && !ret && ov13858->power_count == 1) {
+		/* restore controls */
+		ret = v4l2_ctrl_handler_setup(&ov13858->ctrl_handler);
+	}
+
+	return ret;
+}
+
 static int ov13858_enum_mbus_code(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_mbus_code_enum *code)
@@ -1504,7 +1551,8 @@ err_unlock:
 
 static int __maybe_unused ov13858_suspend(struct device *dev)
 {
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov13858 *ov13858 = to_ov13858(sd);
 
 	if (ov13858->streaming)
@@ -1515,7 +1563,8 @@ static int __maybe_unused ov13858_suspend(struct device *dev)
 
 static int __maybe_unused ov13858_resume(struct device *dev)
 {
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov13858 *ov13858 = to_ov13858(sd);
 	int ret;
 
@@ -1560,6 +1609,14 @@ static const struct v4l2_subdev_core_ops ov13858_core_ops = {
 	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
 };
 
+
+static const struct v4l2_subdev_core_ops ov13858_core_ops = {
+	.s_power = ov13858_s_power,
+	.log_status = v4l2_ctrl_subdev_log_status,
+	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
+	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
+};
+
 static const struct v4l2_subdev_video_ops ov13858_video_ops = {
 	.s_stream = ov13858_set_stream,
 };
@@ -1580,9 +1637,18 @@ static const struct v4l2_subdev_ops ov13858_subdev_ops = {
 	.video = &ov13858_video_ops,
 	.pad = &ov13858_pad_ops,
 	.sensor = &ov13858_sensor_ops,
+	.core = &ov13858_core_ops,
 };
 
+static int ov13858_link_setup(struct media_entity *entity,
+			   const struct media_pad *local,
+			   const struct media_pad *remote, u32 flags)
+{
+	return 0;
+}
+
 static const struct media_entity_operations ov13858_subdev_entity_ops = {
+	.link_setup = ov13858_link_setup,
 	.link_validate = v4l2_subdev_link_validate,
 };
 
@@ -1697,20 +1763,23 @@ static void ov13858_free_controls(struct ov13858 *ov13858)
 	v4l2_ctrl_handler_free(ov13858->sd.ctrl_handler);
 	mutex_destroy(&ov13858->mutex);
 }
-
 static int ov13858_probe(struct i2c_client *client)
 {
 	struct ov13858 *ov13858;
 	int ret;
 	u32 val = 0;
 
-	device_property_read_u32(&client->dev, "clock-frequency", &val);
+/*	device_property_read_u32(&client->dev, "clock-frequency", &val);
 	if (val != 19200000)
 		return -EINVAL;
-
+*/
 	ov13858 = devm_kzalloc(&client->dev, sizeof(*ov13858), GFP_KERNEL);
 	if (!ov13858)
 		return -ENOMEM;
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,10,0)
+	ov13858->i2c_client = client;
+#endif
 
 	/* Initialize subdev */
 	v4l2_i2c_subdev_init(&ov13858->sd, client, &ov13858_subdev_ops);
@@ -1721,6 +1790,21 @@ static int ov13858_probe(struct i2c_client *client)
 		dev_err(&client->dev, "failed to find sensor: %d\n", ret);
 		return ret;
 	}
+	 /* get system clock (xclk) */
+        ov13858->xclk = devm_clk_get(&client->dev, "csi_mclk");
+        if (IS_ERR(ov13858->xclk)) {
+                dev_err(&client->dev, "failed to get csi_mclk\n");
+                return PTR_ERR(ov13858->xclk);
+        }
+
+        ov13858->xclk_freq = clk_get_rate(ov13858->xclk);
+        if (ov13858->xclk_freq < OV13858_XCLK_MIN ||
+            ov13858->xclk_freq > OV13858_XCLK_MAX) {
+                dev_err(&client->dev, "xclk frequency out of range: %d Hz\n",
+                        ov13858->xclk_freq);
+                return -EINVAL;
+        }
+	dev_info(&client->dev, "xclk is %d\n", ov13858->xclk_freq);
 
 	/* Set default mode to max resolution */
 	ov13858->cur_mode = &supported_modes[0];
@@ -1799,12 +1883,25 @@ static const struct acpi_device_id ov13858_acpi_ids[] = {
 
 MODULE_DEVICE_TABLE(acpi, ov13858_acpi_ids);
 #endif
+ 
+#ifdef CONFIG_OF
+static const struct of_device_id ov13858_dt_ids[] = {
+	{ .compatible = "ovti,ov13858" },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, ov13858_dt_ids);
+#endif
 
 static struct i2c_driver ov13858_i2c_driver = {
 	.driver = {
 		.name = "ov13858",
 		.pm = &ov13858_pm_ops,
+#ifdef CONFIG_ACPI
 		.acpi_match_table = ACPI_PTR(ov13858_acpi_ids),
+#endif
+#ifdef CONFIG_OF
+		.of_match_table	= ov13858_dt_ids,
+#endif
 	},
 	.probe = ov13858_probe,
 	.remove = ov13858_remove,
