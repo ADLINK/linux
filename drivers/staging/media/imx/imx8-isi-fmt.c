@@ -97,7 +97,28 @@ struct mxc_isi_fmt mxc_isi_out_formats[] = {
 		.colplanes	= 1,
 		.align		= 2,
 		.mbus_code	= MEDIA_BUS_FMT_RGB888_1X24,
-	}
+	},
+	{
+                .name           = "BGGR10",
+                .fourcc         = V4L2_PIX_FMT_SBGGR10,
+                .depth          = { 16 },
+                .color          = MXC_ISI_OUT_FMT_RAW10,
+                .memplanes      = 1,
+                .colplanes      = 1,
+                .align          = 2,
+                .mbus_code      = MEDIA_BUS_FMT_SBGGR10_1X10,
+        },
+        {
+                .name           = "BGGR8",
+                .fourcc         = V4L2_PIX_FMT_SBGGR8,
+                .depth          = { 8 },
+                .color          = MXC_ISI_OUT_FMT_RAW8,
+                .memplanes      = 1,
+                .colplanes      = 1,
+                .align          = 2,
+                .mbus_code      = MEDIA_BUS_FMT_SBGGR8_1X8,
+        },
+
 };
 
 size_t mxc_isi_out_formats_size = ARRAY_SIZE(mxc_isi_out_formats);

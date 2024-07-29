@@ -655,6 +655,11 @@ void mxc_isi_channel_config_loc(struct mxc_isi_dev *mxc_isi,
 	if (!mxc_isi->cscen && !mxc_isi->scale)
 		val |= (CHNL_CTRL_CHNL_BYPASS_ENABLE << CHNL_CTRL_CHNL_BYPASS_OFFSET);
 
+	if ((mxc_isi->isi_cap->pix.pixelformat == V4L2_PIX_FMT_SBGGR10) ||
+                (mxc_isi->isi_cap->pix.pixelformat == V4L2_PIX_FMT_SBGGR8)) {
+                val |= (CHNL_CTRL_CHNL_BYPASS_ENABLE << CHNL_CTRL_CHNL_BYPASS_OFFSET);
+        }
+
 	writel(val, mxc_isi->regs + CHNL_CTRL);
 }
 EXPORT_SYMBOL_GPL(mxc_isi_channel_config_loc);

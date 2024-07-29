@@ -1186,6 +1186,7 @@ static int mipi_csis_get_fmt(struct v4l2_subdev *mipi_sd,
 	struct v4l2_mbus_framefmt *mf = &state->format;
 	struct media_pad *source_pad;
 	struct v4l2_subdev *sen_sd;
+	struct csis_pix_format const *csis_fmt;
 	int ret;
 
 	/* Get remote source pad */
@@ -1210,6 +1211,14 @@ static int mipi_csis_get_fmt(struct v4l2_subdev *mipi_sd,
 	}
 
 	memcpy(mf, &format->format, sizeof(struct v4l2_mbus_framefmt));
+
+	csis_fmt = find_csis_format(mf->code);
+        if (!csis_fmt) {
+                csis_fmt = &mipi_csis_formats[0];
+                mf->code = csis_fmt->code;
+        }
+        state->csis_fmt = csis_fmt;
+
 	return 0;
 }
 
