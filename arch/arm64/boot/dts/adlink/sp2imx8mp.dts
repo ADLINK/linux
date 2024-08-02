@@ -354,35 +354,35 @@
 		snps,tx-queues-to-use = <5>;
 		snps,tx-sched-sp;
 
-		queue0 {
+    queue0 {
 			snps,dcb-algorithm;
 			snps,priority = <0x1>;
 		};
 
-		queue1 {
+    queue1 {
 			snps,dcb-algorithm;
 			snps,priority = <0x2>;
 		};
 
-		queue2 {
+    queue2 {
 			snps,dcb-algorithm;
 			snps,priority = <0x4>;
 		};
 
-		queue3 {
+    queue3 {
 			snps,dcb-algorithm;
 			snps,priority = <0x8>;
 		};
 
-		queue4 {
+    queue4 {
 			snps,dcb-algorithm;
 			snps,priority = <0xf0>;
 		};
-	};
+  };
 
-	mtl_rx_setup: rx-queues-config {
-		snps,rx-queues-to-use = <5>;
-		snps,rx-sched-sp;
+  mtl_rx_setup: rx-queues-config {
+   	snps,rx-queues-to-use = <5>;
+	  snps,rx-sched-sp;
 
 		queue0 {
 			snps,dcb-algorithm;
@@ -746,7 +746,6 @@
 	fsl,uart-has-rtscts;
 	status = "okay";
 };
-
 
 &uart2 {
 	/* console */
