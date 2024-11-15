@@ -22,6 +22,7 @@ dtbo-$(CONFIG_ARCH_MXC) += cma400mb-overlay.dtbo
 dtbo-$(CONFIG_ARCH_MXC) += cma750mb-overlay.dtbo
 dtbo-$(CONFIG_ARCH_MXC) += cma950mb-overlay.dtbo
 dtbo-$(CONFIG_ARCH_MXC) += 23inch-overlay.dtbo
+dtbo-$(CONFIG_ARCH_MXC) += 21inch-overlay.dtbo
 dtbo-$(CONFIG_ARCH_MXC) += ts-ili2132-overlay.dtbo
 
 # enable creation of __symbols__ node
