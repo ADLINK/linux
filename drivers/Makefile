@@ -62,6 +62,9 @@ obj-y				+= iommu/
 # gpu/ comes after char for AGP vs DRM startup and after iommu
 obj-y				+= gpu/
 
+# GUI: rearrange modules order so mxc/gpu-viv/ is loaded earlier
+obj-y		 		+= mxc/
+
 obj-$(CONFIG_CONNECTOR)		+= connector/
 
 # i810fb and intelfb depend on char/agp/
@@ -187,4 +190,4 @@ obj-$(CONFIG_GNSS)		+= gnss/
 obj-$(CONFIG_INTERCONNECT)	+= interconnect/
 obj-$(CONFIG_COUNTER)		+= counter/
 obj-$(CONFIG_MOST)		+= most/
-obj-y		 		+= mxc/
+
